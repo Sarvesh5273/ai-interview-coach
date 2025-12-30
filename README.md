@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# SkillNova Voice: AI Technical Interviewer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Winner of the "ElevenLabs Challenge" Criteria**
+SkillNova Voice is a real-time technical interview coach that combines **Google Gemini 2.5 Flash** (Brain) with **ElevenLabs Conversational AI** (Voice) to simulate a high-pressure interview environment.
 
-Currently, two official plugins are available:
+## 🚀 The Stack
+- **Voice AI:** ElevenLabs Conversational Agents (Websocket)
+- **Intelligence:** Google Vertex AI / Gemini 2.5 Flash via Generative AI SDK
+- **Frontend:** React + Vite + Tailwind CSS
+- **Design:** Glassmorphism UI with framer-motion animations
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🛠️ How to Run Locally
 
-## React Compiler
+### 1. Clone the Repo
+```bash
+git clone [https://github.com/Sarvesh5273/ai-interview-coach.git](https://github.com/Sarvesh5273/ai-interview-coach.git)
+cd ai-interview-coach
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. Install Dependencies
+npm install
 
-## Expanding the ESLint configuration
+3. Set up Environment Keys
+Create a .env file in the root directory:
+VITE_GEMINI_API_KEY=your_google_ai_studio_key
+VITE_ELEVENLABS_AGENT_ID=your_elevenlabs_agent_id
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+4. Run the App
+npm run dev
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+🤖 How it Works
+Audio Input: The user speaks into the microphone.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+ElevenLabs Processing: The audio is streamed to ElevenLabs, which converts speech to text.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Gemini Logic: The text is processed by a Gemini-powered agent to generate a context-aware response.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Voice Output: ElevenLabs generates a human-like voice response and streams it back.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Feedback Loop: Upon ending the session, the entire transcript is sent to Google Gemini to generate a "Hiring Decision" report card.
+
+📄 License
+This project is open source under the MIT License.

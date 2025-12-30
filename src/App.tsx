@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Mic, Square, Loader2, Sparkles, CheckCircle2, XCircle, ChevronRight } from 'lucide-react';
+import { Mic, Square, Loader2, Sparkles, CheckCircle2, ChevronRight } from 'lucide-react';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -13,15 +13,38 @@ interface Message {
 
 function App() {
   const [status, setStatus] = useState<'idle' | 'connected' | 'disconnected'>('idle');
-  const [transcript, setTranscript] = useState<Message[]>([]);
+  const [transcriptDisplay, setTranscriptDisplay] = useState<Message[]>([]); // For UI only
   const [feedback, setFeedback] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // THE FIX: useRef holds the real data instantly, bypassing React state delays
+  const transcriptRef = useRef<Message[]>([]);
 
   const conversation = useConversation({
-    onConnect: () => { setStatus('connected'); setTranscript([]); setFeedback(''); },
-    onDisconnect: () => { setStatus('disconnected'); generateFeedback(); },
+    onConnect: () => { 
+      setStatus('connected'); 
+      setTranscriptDisplay([]); 
+      transcriptRef.current = []; // Reset the "Real" transcript
+      setFeedback(''); 
+    },
+    onDisconnect: () => { 
+      setStatus('disconnected');
+      // Trigger report generation immediately using the Ref
+      generateFeedback();
+    },
     onMessage: (message) => {
-      if (message.message) setTranscript(prev => [...prev, { source: message.source === 'user' ? 'user' : 'ai', message: message.message }]);
+      if (message.message) {
+        const newMsg: Message = { 
+          source: message.source === 'user' ? 'user' : 'ai', 
+          message: message.message 
+        };
+        
+        // 1. Update the Ref (Instant)
+        transcriptRef.current.push(newMsg);
+        
+        // 2. Update the UI (Visual only)
+        setTranscriptDisplay(prev => [...prev, newMsg]);
+      }
     },
     onError: (error) => console.error('Error:', error),
   });
@@ -35,29 +58,44 @@ function App() {
     } catch (error) { alert("Connection failed."); }
   }, [conversation]);
 
-  const stopInterview = useCallback(async () => { await conversation.endSession(); }, [conversation]);
+  const stopInterview = useCallback(async () => { 
+    await conversation.endSession(); 
+  }, [conversation]);
 
   const generateFeedback = async () => {
-    if (transcript.length === 0) return;
+    // READ FROM REF (Reliable), NOT STATE
+    const finalTranscript = transcriptRef.current;
+
+    console.log("Transcript for analysis:", finalTranscript); // Debug log
+
+    if (finalTranscript.length === 0) {
+      console.warn("Transcript was empty, skipping Gemini.");
+      return; 
+    }
+
     setIsAnalyzing(true);
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const conversationText = transcript.map(t => `${t.source}: ${t.message}`).join('\n');
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const conversationText = finalTranscript.map(t => `${t.source}: ${t.message}`).join('\n');
       const prompt = `You are a Senior Technical Recruiter at Google. Analyze this interview transcript:\n${conversationText}\nProvide a performance review in Markdown. Focus on: Technical Accuracy, Communication Clarity, and a Final Verdict (Hire/No Hire).`;
+      
       const result = await model.generateContent(prompt);
       setFeedback(result.response.text());
-    } catch (error) { setFeedback("Error generating feedback."); } 
-    finally { setIsAnalyzing(false); }
+    } catch (error) { 
+      console.error(error);
+      setFeedback("Error generating feedback. Please check your API key."); 
+    } finally { 
+      setIsAnalyzing(false); 
+    }
   };
 
   return (
     <div className="min-h-screen text-zinc-100 flex flex-col items-center justify-center p-6 relative overflow-hidden selection:bg-indigo-500/30">
       
-      {/* Background Gradients (Subtle) */}
+      {/* Background Gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Main Container */}
       <div className="w-full max-w-3xl z-10 space-y-8">
         
         {/* Header */}
@@ -77,7 +115,6 @@ function App() {
         {/* Interaction Card */}
         <div className="relative bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-3xl p-12 shadow-2xl flex flex-col items-center gap-8 overflow-hidden">
           
-          {/* Status Light */}
           <div className="absolute top-6 right-6 flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-red-500 animate-pulse' : 'bg-zinc-700'}`} />
             <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
@@ -85,9 +122,7 @@ function App() {
             </span>
           </div>
 
-          {/* The "Breathing" Mic */}
           <div className="relative group">
-             {/* Animation Rings */}
             {status === 'connected' && (
               <>
                 <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping opacity-75 duration-1000" />
@@ -111,7 +146,6 @@ function App() {
             </button>
           </div>
 
-          {/* Action Text */}
           <div className="text-center space-y-1 h-12">
              {status === 'idle' && <p className="text-zinc-400">Tap microphone to begin</p>}
              {status === 'connected' && <p className="text-indigo-300 font-medium animate-pulse">Listening...</p>}
@@ -122,10 +156,9 @@ function App() {
                </div>
              )}
           </div>
-
         </div>
 
-        {/* Feedback Section (Clean Report Style) */}
+        {/* Feedback Section */}
         {feedback && (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-500">
             <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
@@ -133,13 +166,12 @@ function App() {
                 <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                 Assessment Complete
               </h3>
-              <span className="text-xs text-zinc-500 font-mono">GEMINI-1.5-FLASH</span>
+              <span className="text-xs text-zinc-500 font-mono">GEMINI-2.5-FLASH</span>
             </div>
             
             <div className="p-8 prose prose-invert prose-zinc max-w-none">
-              {/* Rendering markdown simply */}
               {feedback.split('\n').map((line, i) => {
-                if (line.startsWith('**Verdict')) return (
+                if (line.trim().startsWith('**Verdict')) return (
                    <div key={i} className="mt-6 p-4 bg-zinc-800/50 rounded-lg border-l-4 border-indigo-500">
                       <p className="text-indigo-200 font-medium m-0">{line.replace(/\*\*/g, '')}</p>
                    </div>
@@ -155,7 +187,6 @@ function App() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
